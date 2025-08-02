@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+rawpy
+imageio
+python-multipart
