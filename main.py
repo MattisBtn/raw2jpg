@@ -10,6 +10,7 @@ app = FastAPI(title="Raw2JPG Converter Service")
 
 SUPPORTED_EXTS = {'.arw', '.cr2', '.dng', '.nef', '.raw', '.cr3'}
 
+# Convert raw to jpg
 @app.post("/convert")
 async def convert_raw_to_jpg(file: UploadFile = File(...)):
     # Validate extension
