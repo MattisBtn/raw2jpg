@@ -1,10 +1,10 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
 import rawpy
-import imageio
 import io
 import os
 import tempfile
+from PIL import Image, ImageCms
 
 app = FastAPI(title="Raw2JPG Converter Service")
 
@@ -27,14 +27,31 @@ async def convert_raw_to_jpg(file: UploadFile = File(...)):
             tmp.write(raw_bytes)
             tmp.flush()
             with rawpy.imread(tmp.name) as raw:
-                rgb = raw.postprocess()
+                rgb = raw.postprocess(
+                    use_camera_wb=True,
+                    no_auto_bright=True,
+                    output_color=rawpy.ColorSpace.sRGB,
+                    gamma=(2.222, 4.5),
+                    bright=1.0,
+                    output_bps=8,
+                )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing RAW: {e}")
 
-    # Encode to JPEG in memory
+    # Encode to JPEG in memory with embedded sRGB ICC profile
     try:
         buffer = io.BytesIO()
-        imageio.imwrite(buffer, rgb, format='JPEG')
+        img = Image.fromarray(rgb, mode="RGB")
+        srgb_profile = ImageCms.createProfile("sRGB")
+        icc_bytes = ImageCms.ImageCmsProfile(srgb_profile).tobytes()
+        img.save(
+            buffer,
+            format="JPEG",
+            quality=95,
+            subsampling=0,
+            optimize=True,
+            icc_profile=icc_bytes,
+        )
         buffer.seek(0)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error encoding JPEG: {e}")
